@@ -1,0 +1,21 @@
+{
+  "name": "furllamm-crypto-locker-wallet",
+  "version": "0.5.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync:registry": "tsx scripts/sync-registry.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@trustwallet/wallet-core": "4.8.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.0"
+  }
+}
