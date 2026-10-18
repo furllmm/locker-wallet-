@@ -42,3 +42,5 @@ Trust Wallet's current developer documentation describes Ethereum signing as: bu
 - Settings are stored inside the existing AES-256-GCM encrypted vault payload. Existing vaults without a `walletSettings` field load with safe defaults; saving settings re-encrypts the payload with a fresh salt and IV.
 - Core APIs: `getWalletSettings(vault, password)` and `saveWalletSettings(vault, password, settings)`. The caller must persist the returned `VaultDocument` through the app's storage layer.
 - This repository currently contains domain/core code rather than a rendered desktop UI, so the Wallet Settings screen and its add/edit/enable/delete controls still need UI integration.
+
+- Optional `maxTransactionUsd` adds a per-transaction hard cap. The signing guard enforces it when the caller supplies both the configured cap and a trusted USD valuation; if a cap is enabled but valuation is missing/invalid, signing is blocked (fail closed). This is not a daily/monthly spending budget, and the UI must pass the current setting into the signing guard.
