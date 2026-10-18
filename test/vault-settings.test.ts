@@ -17,6 +17,7 @@ describe('encrypted wallet settings persistence', () => {
       version: 1,
       defaultWalletId: savings.id,
       maxTransactionUsd: null,
+      cooldownSeconds: 0,
       savingRules: [{
         id: 'minimum-main-to-savings',
         enabled: true,
