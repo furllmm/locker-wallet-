@@ -42,6 +42,17 @@ describe('v0.4 transactions', () => {
     expect(draft.intent.fromLockerId).toBe('main');
   });
 
+  it('refuses to create a send when no wallet accounts are available', () => {
+    expect(() => createSendUsingDefaultWallet({
+      settings: createDefaultWalletSettings(),
+      availableAccounts: [],
+      networkId: 'ethereum',
+      asset,
+      amountBaseUnits: '100',
+      to: { address: '0xabc' },
+    })).toThrow('No available wallet account');
+  });
+
   it('creates an internal Transfer draft', () => {
     const d = createTransfer({ from, to, asset, amountBaseUnits: '100' });
     expect(d.intent.kind).toBe('transfer');
