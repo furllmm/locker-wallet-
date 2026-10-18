@@ -1,4 +1,5 @@
-import { randomBytes, scryptSync, createCipheriv, createDecipheriv, timingSafeEqual } from 'node:crypto';
+import { randomBytes, scryptSync, createCipheriv, createDecipheriv } from 'node:crypto';
+import type { WalletSettings } from '../settings/wallet-settings.js';
 
 const FORMAT = 'FCLW1';
 const SALT_BYTES = 16;
@@ -13,6 +14,8 @@ export interface VaultPayload {
   version: 1;
   mnemonic: string;
   createdAt: string;
+  /** Optional for backwards compatibility with vaults created before settings existed. */
+  walletSettings?: WalletSettings;
 }
 
 export interface EncryptedVault {
@@ -39,13 +42,16 @@ export function encryptVault(payload: VaultPayload, password: string): Encrypted
   try {
     const cipher = createCipheriv('aes-256-gcm', key, iv);
     const plaintext = Buffer.from(JSON.stringify(payload), 'utf8');
-    const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
-    const tag = cipher.getAuthTag();
-    plaintext.fill(0);
-    return {
-      format: FORMAT, kdf: 'scrypt', n: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P,
-      salt: salt.toString('base64'), iv: iv.toString('base64'), tag: tag.toString('base64'), ciphertext: ciphertext.toString('base64')
-    };
+    try {
+      const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+      const tag = cipher.getAuthTag();
+      return {
+        format: FORMAT, kdf: 'scrypt', n: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P,
+        salt: salt.toString('base64'), iv: iv.toString('base64'), tag: tag.toString('base64'), ciphertext: ciphertext.toString('base64')
+      };
+    } finally {
+      plaintext.fill(0);
+    }
   } finally { key.fill(0); }
 }
 
@@ -62,10 +68,15 @@ export function decryptVault(encrypted: EncryptedVault, password: string): Vault
     const decipher = createDecipheriv('aes-256-gcm', key, iv);
     decipher.setAuthTag(tag);
     const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-    const payload = JSON.parse(plaintext.toString('utf8')) as VaultPayload;
-    plaintext.fill(0);
-    if (payload.version !== 1 || typeof payload.mnemonic !== 'string' || typeof payload.createdAt !== 'string') throw new Error('Invalid vault payload');
-    return payload;
+    try {
+      const parsed: unknown = JSON.parse(plaintext.toString('utf8'));
+      if (!parsed || typeof parsed !== 'object') throw new Error('Invalid vault payload');
+      const payload = parsed as Partial<VaultPayload>;
+      if (payload.version !== 1 || typeof payload.mnemonic !== 'string' || typeof payload.createdAt !== 'string') throw new Error('Invalid vault payload');
+      return payload as VaultPayload;
+    } finally {
+      plaintext.fill(0);
+    }
   } catch {
     throw new Error('Invalid password or corrupted vault');
   } finally { key.fill(0); }
