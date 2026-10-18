@@ -31,3 +31,33 @@ v0.4 creates transaction intents/drafts and policy guards. It does **not** broad
 - Real signing/broadcast is still intentionally not automatic in this milestone. The next step is Wallet Core EVM signing integration plus explicit user confirmation before `eth_sendRawTransaction`.
 
 Trust Wallet's current developer documentation describes Ethereum signing as: build transaction fields, sign with Wallet Core, then broadcast the encoded transaction; Ethereum default derivation is `m/44'/60'/0'/0/0`.
+
+## Wallet Settings — default wallet and Saving Rules
+
+- `defaultWalletId` stores the wallet preselected by the receive/send UI; `null` means no preference.
+- `createSendUsingDefaultWallet` now uses that preference when creating a Send draft; if the saved wallet no longer exists, it safely falls back to the first available account. The caller still needs to pass the resulting draft through the settings-aware signing guard.
+- Saving Rules are scoped to a source wallet and destination wallet and use a caller-provided USD valuation for the proposed transfer.
+- A rule can block a transfer below its minimum USD value or show a warning. A transfer exactly at the threshold passes.
+- Rules are policy-only: they never create, sign, or broadcast a transaction.
+- `validateWalletSettings` validates wallet references and rule configuration; `evaluateSavingRules` evaluates a proposed transfer. `setDefaultWallet`, `upsertSavingRule`, and `deleteSavingRule` provide immutable settings-edit operations.
+- Settings are stored inside the existing AES-256-GCM encrypted vault payload. Existing vaults without a `walletSettings` field load with safe defaults; saving settings re-encrypts the payload with a fresh salt and IV.
+- Core APIs: `getWalletSettings(vault, password)` and `saveWalletSettings(vault, password, settings)`. The caller must persist the returned `VaultDocument` through the app's storage layer.
+- This repository currently contains domain/core code rather than a rendered desktop UI, so the Wallet Settings screen and its add/edit/enable/delete controls still need UI integration.
+
+- Optional `maxTransactionUsd` adds a per-transaction hard cap. The signing guard enforces it when the caller supplies both the configured cap and a trusted USD valuation; if a cap is enabled but valuation is missing/invalid, signing is blocked (fail closed). This is not a daily/monthly spending budget, and the UI must pass the current setting into the signing guard.
+
+
+- `cooldownSeconds` optionally delays signing until the configured number of seconds has elapsed since draft creation (0 disables it; maximum 7 days). The settings-aware signing guard enforces this before checking the spend cap and Saving Rules. This remains effective only if every future signing path calls the guard.
+
+### Latest policy hardening batch
+
+- `assertSigningAllowedWithWalletSettings` now returns warning messages for matching `warn` rules; callers should display these and request explicit user acknowledgement before continuing.
+- Matching wallet-to-wallet Saving Rules require a valid USD valuation. Unrelated routes do not block a transfer or require a quote.
+- Runtime validation rejects malformed persisted wallet IDs instead of leaking low-level type errors.
+- CI installs dependencies with `npm install` because this repository does not currently contain a lockfile; CI runs on pushes to feature branches and pull requests.
+- These policy functions still need to be called by every real signing path before the wallet can claim end-to-end spending enforcement.
+
+
+## Settings persistence boundary
+
+- `WalletSettingsService` now provides an application-layer persistence boundary: it loads the vault, validates/re-encrypts settings, and sends the updated encrypted document to an injected store adapter. A concrete desktop file-store adapter still needs to be supplied by the host application.

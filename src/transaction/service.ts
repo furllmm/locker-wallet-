@@ -1,5 +1,6 @@
 import type { TransactionDraft, TransactionIntent } from './types.js';
 import { createInternalTransfer } from './transfer.js';
+import { resolveDefaultWalletId, validateWalletSettings, type WalletSettings } from '../settings/wallet-settings.js';
 
 export interface InternalAccountRef {
   lockerId: string;
@@ -33,4 +34,42 @@ export function createTransfer(input: {
   if (input.from.networkId !== input.to.networkId) throw new Error('Internal transfer requires the same network');
   if (input.from.address === input.to.address) throw new Error('Source and destination must be different');
   return createInternalTransfer(input, now);
+}
+
+
+export interface AvailableWalletAccount {
+  lockerId: string;
+  accountId: string;
+}
+
+/**
+ * Creates a Send draft using the configured preferred wallet.
+ * If the preference is unset/stale, it falls back to the first available account.
+ * This only selects the source; it never signs or broadcasts a transaction.
+ */
+export function createSendUsingDefaultWallet(input: {
+  settings: WalletSettings;
+  availableAccounts: readonly AvailableWalletAccount[];
+  networkId: string;
+  asset: TransactionIntent['asset'];
+  amountBaseUnits: string;
+  to: TransactionIntent['to'];
+  memo?: string;
+}, now = new Date()): TransactionDraft {
+  const settings = validateWalletSettings(input.settings);
+  const walletIds = [...new Set(input.availableAccounts.map(account => account.lockerId))];
+  const selectedLockerId = resolveDefaultWalletId(settings, walletIds);
+  if (selectedLockerId === null) throw new Error('No available wallet account to send from');
+  const selectedAccount = input.availableAccounts.find(account => account.lockerId === selectedLockerId);
+  if (!selectedAccount) throw new Error('The selected default wallet has no available account');
+
+  return createSend({
+    fromLockerId: selectedAccount.lockerId,
+    fromAccountId: selectedAccount.accountId,
+    networkId: input.networkId,
+    asset: input.asset,
+    amountBaseUnits: input.amountBaseUnits,
+    to: input.to,
+    ...(input.memo !== undefined ? { memo: input.memo } : {}),
+  }, now);
 }
