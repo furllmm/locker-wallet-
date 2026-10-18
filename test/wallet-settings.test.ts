@@ -25,6 +25,7 @@ describe('wallet settings', () => {
       defaultWalletId: null,
       savingRules: [],
       maxTransactionUsd: null,
+      cooldownSeconds: 0,
     });
   });
 
