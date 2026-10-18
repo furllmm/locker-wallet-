@@ -143,6 +143,19 @@ describe('Saving Rules management helpers', () => {
     expect(() => setDefaultWallet(initial, 'missing', walletIds)).toThrow('Default wallet does not exist');
   });
 
+
+  it('rejects malformed wallet IDs in persisted settings', () => {
+    expect(() => validateWalletSettings({
+      version: 1, defaultWalletId: undefined, savingRules: [],
+    } as unknown as ReturnType<typeof createDefaultWalletSettings>)).toThrow('Default wallet ID must be a non-empty string');
+
+    expect(() => validateWalletSettings({
+      version: 1,
+      defaultWalletId: null,
+      savingRules: [{ ...baseRule, id: 42 }],
+    } as unknown as ReturnType<typeof createDefaultWalletSettings>)).toThrow('Saving rule ID must be a non-empty string');
+  });
+
   it('rejects malformed runtime data instead of trusting persisted JSON', () => {
     expect(() => validateWalletSettings({ version: 1, defaultWalletId: null, savingRules: null } as unknown as ReturnType<typeof createDefaultWalletSettings>)).toThrow('Saving rules must be an array');
   });
