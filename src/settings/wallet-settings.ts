@@ -37,8 +37,10 @@ export function createDefaultWalletSettings(): WalletSettings {
   return { version: 1, defaultWalletId: null, savingRules: [], maxTransactionUsd: null };
 }
 
-function assertNonEmpty(value: string, field: string): void {
-  if (!value.trim()) throw new Error(`${field} cannot be empty`);
+function assertNonEmpty(value: unknown, field: string): asserts value is string {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new Error(`${field} must be a non-empty string`);
+  }
 }
 
 export function validateWalletSettings(
