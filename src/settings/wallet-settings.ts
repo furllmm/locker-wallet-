@@ -22,6 +22,8 @@ export interface WalletSettings {
   /** Wallet ID preselected by receive/send UI; null means no preference. */
   defaultWalletId: string | null;
   savingRules: SavingRule[];
+  /** Optional hard cap per signed transaction, in USD. Null disables this cap. */
+  maxTransactionUsd?: number | null;
 }
 
 export interface SavingRuleEvaluation {
@@ -32,7 +34,7 @@ export interface SavingRuleEvaluation {
 }
 
 export function createDefaultWalletSettings(): WalletSettings {
-  return { version: 1, defaultWalletId: null, savingRules: [] };
+  return { version: 1, defaultWalletId: null, savingRules: [], maxTransactionUsd: null };
 }
 
 function assertNonEmpty(value: string, field: string): void {
@@ -45,6 +47,10 @@ export function validateWalletSettings(
 ): WalletSettings {
   if (!settings || typeof settings !== 'object' || settings.version !== 1) throw new Error('Unsupported wallet settings version');
   if (!Array.isArray(settings.savingRules)) throw new Error('Saving rules must be an array');
+  const maxTransactionUsd = settings.maxTransactionUsd ?? null;
+  if (maxTransactionUsd !== null && (!Number.isFinite(maxTransactionUsd) || maxTransactionUsd <= 0)) {
+    throw new Error('Maximum transaction USD must be a finite positive number or null');
+  }
   if (settings.defaultWalletId !== null) {
     assertNonEmpty(settings.defaultWalletId, 'Default wallet ID');
     if (availableWalletIds && !availableWalletIds.includes(settings.defaultWalletId)) {
@@ -80,6 +86,7 @@ export function validateWalletSettings(
     version: 1,
     defaultWalletId: settings.defaultWalletId,
     savingRules: settings.savingRules.map(rule => ({ ...rule })),
+    maxTransactionUsd,
   };
 }
 
