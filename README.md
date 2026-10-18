@@ -39,4 +39,6 @@ Trust Wallet's current developer documentation describes Ethereum signing as: bu
 - A rule can block a transfer below its minimum USD value or show a warning. A transfer exactly at the threshold passes.
 - Rules are policy-only: they never create, sign, or broadcast a transaction.
 - `validateWalletSettings` validates wallet references and rule configuration; `evaluateSavingRules` evaluates a proposed transfer.
-- This repository currently contains domain/core code rather than a rendered Wallet Settings UI. UI wiring and durable encrypted-vault persistence remain follow-up integration work.
+- Settings are stored inside the existing AES-256-GCM encrypted vault payload. Existing vaults without a `walletSettings` field load with safe defaults; saving settings re-encrypts the payload with a fresh salt and IV.
+- Core APIs: `getWalletSettings(vault, password)` and `saveWalletSettings(vault, password, settings)`. The caller must persist the returned `VaultDocument` through the app's storage layer.
+- This repository currently contains domain/core code rather than a rendered desktop UI, so the Wallet Settings screen and its add/edit/enable/delete controls still need UI integration.
