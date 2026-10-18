@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createVault, getWalletSettings, saveWalletSettings, unlockVault } from '../src/core/vault.js';
 import { createDefaultWalletSettings, type WalletSettings } from '../src/settings/wallet-settings.js';
+import { WalletSettingsService } from '../src/core/wallet-settings-service.js';
 
 describe('encrypted wallet settings persistence', () => {
   it('creates a vault with settings available after unlock', () => {
@@ -47,4 +48,28 @@ describe('encrypted wallet settings persistence', () => {
     const vault = createVault('alpha beta gamma', 'strong-test-password');
     expect(() => getWalletSettings(vault, 'wrong-password')).toThrow('Invalid password or corrupted vault');
   });
+  it('serializes concurrent settings saves without overlapping store writes', async () => {
+    let stored = createVault('alpha beta gamma', 'strong-test-password');
+    let activeWrites = 0;
+    let maxActiveWrites = 0;
+    const service = new WalletSettingsService({
+      async load() { return stored; },
+      async save(next) {
+        activeWrites += 1;
+        maxActiveWrites = Math.max(maxActiveWrites, activeWrites);
+        await Promise.resolve();
+        stored = next;
+        activeWrites -= 1;
+      },
+    }, async () => 'strong-test-password');
+    const [main] = stored.lockers;
+    if (!main) throw new Error('Expected initial locker');
+    await Promise.all([
+      service.save({ ...createDefaultWalletSettings(), defaultWalletId: main.id, maxTransactionUsd: 25 }),
+      service.save({ ...createDefaultWalletSettings(), defaultWalletId: main.id, maxTransactionUsd: 50 }),
+    ]);
+    expect(maxActiveWrites).toBe(1);
+    expect([25, 50]).toContain((await service.get()).maxTransactionUsd);
+  });
+
 });
