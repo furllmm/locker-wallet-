@@ -1,6 +1,6 @@
 import { canSign, type SigningContext } from '../rules/modes.js';
 import type { TransactionDraft } from './types.js';
-import type { WalletSettings } from '../settings/wallet-settings.js';
+import { evaluateSavingRules, validateWalletSettings, type WalletSettings } from '../settings/wallet-settings.js';
 
 export interface SpendingGuardContext extends SigningContext {
   fromLockerId: string;
@@ -42,8 +42,36 @@ export function assertSigningAllowedWithWalletSettings(
   context: Omit<SpendingGuardContext, 'maxTransactionUsd'> & { transactionValueUsd?: number },
   settings: WalletSettings,
 ): void {
+  const validatedSettings = validateWalletSettings(settings);
   assertSigningAllowed(draft, {
     ...context,
-    maxTransactionUsd: settings.maxTransactionUsd ?? null,
+    maxTransactionUsd: validatedSettings.maxTransactionUsd ?? null,
   });
+
+  // Saving rules only apply to wallet-to-wallet transfers. External sends have
+  // no destination wallet ID and are intentionally handled by the USD cap instead.
+  if (draft.intent.kind === 'transfer' && draft.intent.to.lockerId) {
+    const matchingBlockingRules = validatedSettings.savingRules.filter(rule =>
+      rule.enabled &&
+      rule.behavior === 'block' &&
+      rule.sourceWalletId === draft.intent.fromLockerId &&
+      rule.targetWalletId === draft.intent.to.lockerId
+    );
+    if (matchingBlockingRules.length > 0 &&
+        (context.transactionValueUsd === undefined ||
+         !Number.isFinite(context.transactionValueUsd) ||
+         context.transactionValueUsd < 0)) {
+      throw new Error('A valid transaction USD valuation is required by the matching saving rule');
+    }
+
+    const evaluation = evaluateSavingRules({
+      sourceWalletId: draft.intent.fromLockerId,
+      targetWalletId: draft.intent.to.lockerId,
+      transferValueUsd: context.transactionValueUsd ?? 0,
+      rules: validatedSettings.savingRules,
+    });
+    if (!evaluation.allowed) {
+      throw new Error(`Transfer blocked by saving rule(s): ${evaluation.blockedByRuleIds.join(', ')}`);
+    }
+  }
 }
