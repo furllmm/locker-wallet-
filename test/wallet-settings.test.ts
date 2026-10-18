@@ -4,6 +4,7 @@ import {
   deleteSavingRule,
   evaluateSavingRules,
   setDefaultWallet,
+  resolveDefaultWalletId,
   upsertSavingRule,
   validateWalletSettings,
   type SavingRule,
@@ -42,6 +43,13 @@ describe('wallet settings', () => {
     expect(() => validateWalletSettings({
       ...createDefaultWalletSettings(), cooldownSeconds: 604801,
     })).toThrow('Cooldown must be an integer');
+  });
+
+  it('resolves the preferred wallet and safely falls back if it is stale', () => {
+    const settings = { ...createDefaultWalletSettings(), defaultWalletId: 'savings' };
+    expect(resolveDefaultWalletId(settings, ['main', 'savings'])).toBe('savings');
+    expect(resolveDefaultWalletId(settings, ['main'])).toBe('main');
+    expect(resolveDefaultWalletId(createDefaultWalletSettings(), [])).toBeNull();
   });
 
   it('validates the default wallet and saving-rule wallet references', () => {
