@@ -35,6 +35,7 @@ Trust Wallet's current developer documentation describes Ethereum signing as: bu
 ## Wallet Settings — default wallet and Saving Rules
 
 - `defaultWalletId` stores the wallet preselected by the receive/send UI; `null` means no preference.
+- `createSendUsingDefaultWallet` now uses that preference when creating a Send draft; if the saved wallet no longer exists, it safely falls back to the first available account. The caller still needs to pass the resulting draft through the settings-aware signing guard.
 - Saving Rules are scoped to a source wallet and destination wallet and use a caller-provided USD valuation for the proposed transfer.
 - A rule can block a transfer below its minimum USD value or show a warning. A transfer exactly at the threshold passes.
 - Rules are policy-only: they never create, sign, or broadcast a transaction.
