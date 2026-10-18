@@ -91,3 +91,43 @@ describe('wallet settings', () => {
     })).toThrow('Duplicate saving rule ID');
   });
 });
+
+
+describe('Saving Rules management helpers', () => {
+  const walletIds = ['main', 'savings'];
+  const rule: SavingRule = {
+    id: 'rule-1',
+    enabled: true,
+    sourceWalletId: 'main',
+    targetWalletId: 'savings',
+    minimumTransferUsd: 5,
+    behavior: 'block',
+  };
+
+  it('adds and replaces a rule without mutating the original settings', () => {
+    const original = createDefaultWalletSettings();
+    const added = upsertSavingRule(original, rule, walletIds);
+    expect(original.savingRules).toHaveLength(0);
+    expect(added.savingRules).toEqual([rule]);
+    const replaced = upsertSavingRule(added, { ...rule, minimumTransferUsd: 10 }, walletIds);
+    expect(replaced.savingRules).toHaveLength(1);
+    expect(replaced.savingRules[0]?.minimumTransferUsd).toBe(10);
+  });
+
+  it('deletes a rule idempotently', () => {
+    const withRule = upsertSavingRule(createDefaultWalletSettings(), rule, walletIds);
+    expect(deleteSavingRule(withRule, 'rule-1').savingRules).toHaveLength(0);
+    expect(deleteSavingRule(withRule, 'not-found').savingRules).toHaveLength(1);
+  });
+
+  it('sets and clears the default wallet while validating references', () => {
+    const initial = createDefaultWalletSettings();
+    expect(setDefaultWallet(initial, 'main', walletIds).defaultWalletId).toBe('main');
+    expect(setDefaultWallet(initial, null, walletIds).defaultWalletId).toBeNull();
+    expect(() => setDefaultWallet(initial, 'missing', walletIds)).toThrow('Default wallet does not exist');
+  });
+
+  it('rejects malformed runtime data instead of trusting persisted JSON', () => {
+    expect(() => validateWalletSettings({ version: 1, defaultWalletId: null, savingRules: null } as unknown as ReturnType<typeof createDefaultWalletSettings>)).toThrow('Saving rules must be an array');
+  });
+});
