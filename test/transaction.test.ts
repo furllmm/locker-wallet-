@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createSend, createTransfer } from '../src/transaction/service.js';
+import { createSend, createSendUsingDefaultWallet, createTransfer } from '../src/transaction/service.js';
 import { createDefaultWalletSettings } from '../src/settings/wallet-settings.js';
 import { assertSigningAllowed, assertSigningAllowedWithWalletSettings } from '../src/transaction/signing-guard.js';
 
@@ -12,6 +12,36 @@ describe('v0.4 transactions', () => {
     const d = createSend({ fromLockerId: 'main', fromAccountId: 'main-0', networkId: 'ethereum', asset, amountBaseUnits: '100', to: { address: '0xabc' } });
     expect(d.intent.kind).toBe('send');
   });
+  it('creates a Send draft from the configured default wallet', () => {
+    const settings = { ...createDefaultWalletSettings(), defaultWalletId: 'savings' };
+    const draft = createSendUsingDefaultWallet({
+      settings,
+      availableAccounts: [
+        { lockerId: 'main', accountId: 'main-0' },
+        { lockerId: 'savings', accountId: 'savings-1' },
+      ],
+      networkId: 'ethereum',
+      asset,
+      amountBaseUnits: '100',
+      to: { address: '0xabc' },
+    });
+    expect(draft.intent.fromLockerId).toBe('savings');
+    expect(draft.intent.fromAccountId).toBe('savings-1');
+  });
+
+  it('falls back to the first available account if the preferred wallet is missing', () => {
+    const settings = { ...createDefaultWalletSettings(), defaultWalletId: 'deleted-wallet' };
+    const draft = createSendUsingDefaultWallet({
+      settings,
+      availableAccounts: [{ lockerId: 'main', accountId: 'main-0' }],
+      networkId: 'ethereum',
+      asset,
+      amountBaseUnits: '100',
+      to: { address: '0xabc' },
+    });
+    expect(draft.intent.fromLockerId).toBe('main');
+  });
+
   it('creates an internal Transfer draft', () => {
     const d = createTransfer({ from, to, asset, amountBaseUnits: '100' });
     expect(d.intent.kind).toBe('transfer');
