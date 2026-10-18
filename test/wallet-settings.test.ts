@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   createDefaultWalletSettings,
+  deleteSavingRule,
   evaluateSavingRules,
+  setDefaultWallet,
+  upsertSavingRule,
   validateWalletSettings,
   type SavingRule,
 } from '../src/settings/wallet-settings.js';
