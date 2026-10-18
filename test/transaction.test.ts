@@ -87,6 +87,46 @@ describe('v0.4 transactions', () => {
     }, settings)).toThrow('USD valuation is required by the matching saving rule');
   });
 
+
+  it('returns warnings for matching warn-only Saving Rules', () => {
+    const d = createTransfer({ from, to, asset, amountBaseUnits: '100' });
+    const settings = {
+      ...createDefaultWalletSettings(),
+      savingRules: [{
+        id: 'warn-small-transfer',
+        enabled: true,
+        sourceWalletId: 'main',
+        targetWalletId: 'savings',
+        minimumTransferUsd: 5,
+        behavior: 'warn' as const,
+      }],
+    };
+    const warnings = assertSigningAllowedWithWalletSettings(d, {
+      mode: 'normal', balanceUsd: 100, fromLockerId: 'main', fromAccountId: 'main-0',
+      transactionValueUsd: 2,
+    }, settings);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain('below the configured minimum');
+  });
+
+  it('does not require USD valuation for unrelated Saving Rules', () => {
+    const d = createTransfer({ from, to, asset, amountBaseUnits: '100' });
+    const settings = {
+      ...createDefaultWalletSettings(),
+      savingRules: [{
+        id: 'other-route',
+        enabled: true,
+        sourceWalletId: 'main',
+        targetWalletId: 'other-wallet',
+        minimumTransferUsd: 5,
+        behavior: 'block' as const,
+      }],
+    };
+    expect(() => assertSigningAllowedWithWalletSettings(d, {
+      mode: 'normal', balanceUsd: 100, fromLockerId: 'main', fromAccountId: 'main-0',
+    }, settings)).not.toThrow();
+  });
+
   it('blocks Ghost signing', () => {
     const d = createTransfer({ from, to, asset, amountBaseUnits: '1' });
     expect(() => assertSigningAllowed(d, { mode: 'ghost', balanceUsd: 100, fromLockerId: 'main', fromAccountId: 'main-0' })).toThrow('Ghost Vault');
