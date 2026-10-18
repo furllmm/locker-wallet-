@@ -24,6 +24,8 @@ export interface WalletSettings {
   savingRules: SavingRule[];
   /** Optional hard cap per signed transaction, in USD. Null disables this cap. */
   maxTransactionUsd?: number | null;
+  /** Mandatory wait after creating a draft before it can be signed; 0 disables it. */
+  cooldownSeconds?: number;
 }
 
 export interface SavingRuleEvaluation {
@@ -34,7 +36,7 @@ export interface SavingRuleEvaluation {
 }
 
 export function createDefaultWalletSettings(): WalletSettings {
-  return { version: 1, defaultWalletId: null, savingRules: [], maxTransactionUsd: null };
+  return { version: 1, defaultWalletId: null, savingRules: [], maxTransactionUsd: null, cooldownSeconds: 0 };
 }
 
 function assertNonEmpty(value: unknown, field: string): asserts value is string {
@@ -52,6 +54,10 @@ export function validateWalletSettings(
   const maxTransactionUsd = settings.maxTransactionUsd ?? null;
   if (maxTransactionUsd !== null && (!Number.isFinite(maxTransactionUsd) || maxTransactionUsd <= 0)) {
     throw new Error('Maximum transaction USD must be a finite positive number or null');
+  }
+  const cooldownSeconds = settings.cooldownSeconds ?? 0;
+  if (!Number.isInteger(cooldownSeconds) || cooldownSeconds < 0 || cooldownSeconds > 604800) {
+    throw new Error('Cooldown must be an integer between 0 and 604800 seconds');
   }
   if (settings.defaultWalletId !== null) {
     assertNonEmpty(settings.defaultWalletId, 'Default wallet ID');
@@ -89,6 +95,7 @@ export function validateWalletSettings(
     defaultWalletId: settings.defaultWalletId,
     savingRules: settings.savingRules.map(rule => ({ ...rule })),
     maxTransactionUsd,
+    cooldownSeconds,
   };
 }
 
