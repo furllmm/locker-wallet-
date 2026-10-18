@@ -52,10 +52,9 @@ export function saveWalletSettings(
 ): VaultDocument {
   const payload = unlockVault(vault, password);
   const validatedSettings = validateWalletSettings(settings, vault.lockers.map(locker => locker.id));
+  // Preserve all existing payload metadata when extending the encrypted schema.
   const nextPayload: VaultPayload = {
-    version: 1,
-    mnemonic: payload.mnemonic,
-    createdAt: payload.createdAt,
+    ...payload,
     walletSettings: validatedSettings,
   };
   return { ...vault, encrypted: encryptVault(nextPayload, password) };
