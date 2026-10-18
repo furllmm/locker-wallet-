@@ -46,6 +46,8 @@ Trust Wallet's current developer documentation describes Ethereum signing as: bu
 - Optional `maxTransactionUsd` adds a per-transaction hard cap. The signing guard enforces it when the caller supplies both the configured cap and a trusted USD valuation; if a cap is enabled but valuation is missing/invalid, signing is blocked (fail closed). This is not a daily/monthly spending budget, and the UI must pass the current setting into the signing guard.
 
 
+- `cooldownSeconds` optionally delays signing until the configured number of seconds has elapsed since draft creation (0 disables it; maximum 7 days). The settings-aware signing guard enforces this before checking the spend cap and Saving Rules. This remains effective only if every future signing path calls the guard.
+
 ### Latest policy hardening batch
 
 - `assertSigningAllowedWithWalletSettings` now returns warning messages for matching `warn` rules; callers should display these and request explicit user acknowledgement before continuing.
