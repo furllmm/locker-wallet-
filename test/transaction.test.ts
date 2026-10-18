@@ -49,6 +49,44 @@ describe('v0.4 transactions', () => {
       transactionValueUsd: 6,
     }, settings)).toThrow('exceeds the configured spending limit');
   });
+
+  it('enforces a matching blocking Saving Rule at the signing guard', () => {
+    const d = createTransfer({ from, to, asset, amountBaseUnits: '100' });
+    const settings = {
+      ...createDefaultWalletSettings(),
+      savingRules: [{
+        id: 'main-to-savings-minimum',
+        enabled: true,
+        sourceWalletId: 'main',
+        targetWalletId: 'savings',
+        minimumTransferUsd: 5,
+        behavior: 'block' as const,
+      }],
+    };
+    expect(() => assertSigningAllowedWithWalletSettings(d, {
+      mode: 'normal', balanceUsd: 100, fromLockerId: 'main', fromAccountId: 'main-0',
+      transactionValueUsd: 4.99,
+    }, settings)).toThrow('Transfer blocked by saving rule');
+  });
+
+  it('fails closed when a matching blocking Saving Rule has no USD valuation', () => {
+    const d = createTransfer({ from, to, asset, amountBaseUnits: '100' });
+    const settings = {
+      ...createDefaultWalletSettings(),
+      savingRules: [{
+        id: 'main-to-savings-minimum',
+        enabled: true,
+        sourceWalletId: 'main',
+        targetWalletId: 'savings',
+        minimumTransferUsd: 5,
+        behavior: 'block' as const,
+      }],
+    };
+    expect(() => assertSigningAllowedWithWalletSettings(d, {
+      mode: 'normal', balanceUsd: 100, fromLockerId: 'main', fromAccountId: 'main-0',
+    }, settings)).toThrow('USD valuation is required by the matching saving rule');
+  });
+
   it('blocks Ghost signing', () => {
     const d = createTransfer({ from, to, asset, amountBaseUnits: '1' });
     expect(() => assertSigningAllowed(d, { mode: 'ghost', balanceUsd: 100, fromLockerId: 'main', fromAccountId: 'main-0' })).toThrow('Ghost Vault');
