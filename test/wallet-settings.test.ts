@@ -24,6 +24,7 @@ describe('wallet settings', () => {
       version: 1,
       defaultWalletId: null,
       savingRules: [],
+      maxTransactionUsd: null,
     });
   });
 
@@ -78,6 +79,18 @@ describe('wallet settings', () => {
         { ...baseRule, id: 'other-route', sourceWalletId: 'gas-tank' },
       ],
     })).toMatchObject({ allowed: true, matchedRuleIds: [] });
+  });
+
+  it('validates the optional per-transaction spending cap', () => {
+    expect(validateWalletSettings({
+      version: 1, defaultWalletId: null, savingRules: [], maxTransactionUsd: 25,
+    }).maxTransactionUsd).toBe(25);
+    expect(validateWalletSettings({
+      version: 1, defaultWalletId: null, savingRules: [],
+    }).maxTransactionUsd).toBeNull();
+    expect(() => validateWalletSettings({
+      version: 1, defaultWalletId: null, savingRules: [], maxTransactionUsd: 0,
+    })).toThrow('finite positive');
   });
 
   it('rejects invalid thresholds and duplicate rule IDs', () => {
