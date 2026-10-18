@@ -9,6 +9,8 @@ export interface SpendingGuardContext extends SigningContext {
   maxTransactionUsd?: number | null;
   /** Trusted USD valuation of the full transaction amount, excluding fees unless caller includes them. */
   transactionValueUsd?: number;
+  /** Injectable clock for deterministic tests. */
+  nowEpochMs?: number;
 }
 
 export function assertSigningAllowed(draft: TransactionDraft, context: SpendingGuardContext): void {
@@ -43,6 +45,18 @@ export function assertSigningAllowedWithWalletSettings(
   settings: WalletSettings,
 ): string[] {
   const validatedSettings = validateWalletSettings(settings);
+  const cooldownSeconds = validatedSettings.cooldownSeconds ?? 0;
+  if (cooldownSeconds > 0) {
+    const createdAtMs = Date.parse(draft.createdAt);
+    const nowEpochMs = context.nowEpochMs ?? Date.now();
+    if (!Number.isFinite(createdAtMs) || !Number.isFinite(nowEpochMs)) {
+      throw new Error('A valid draft creation time is required by the signing cooldown');
+    }
+    if (createdAtMs + cooldownSeconds * 1000 > nowEpochMs) {
+      const remaining = Math.ceil((createdAtMs + cooldownSeconds * 1000 - nowEpochMs) / 1000);
+      throw new Error('Signing cooldown active: wait ' + remaining + ' more second(s) before signing');
+    }
+  }
   assertSigningAllowed(draft, {
     ...context,
     maxTransactionUsd: validatedSettings.maxTransactionUsd ?? null,
