@@ -56,3 +56,8 @@ Trust Wallet's current developer documentation describes Ethereum signing as: bu
 - Runtime validation rejects malformed persisted wallet IDs instead of leaking low-level type errors.
 - CI installs dependencies with `npm install` because this repository does not currently contain a lockfile; CI runs on pushes to feature branches and pull requests.
 - These policy functions still need to be called by every real signing path before the wallet can claim end-to-end spending enforcement.
+
+
+## Settings persistence boundary
+
+- `WalletSettingsService` now provides an application-layer persistence boundary: it loads the vault, validates/re-encrypts settings, and sends the updated encrypted document to an injected store adapter. A concrete desktop file-store adapter still needs to be supplied by the host application.
