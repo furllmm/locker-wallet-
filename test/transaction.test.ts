@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createSend, createTransfer } from '../src/transaction/service.js';
-import { assertSigningAllowed } from '../src/transaction/signing-guard.js';
+import { createDefaultWalletSettings } from '../src/settings/wallet-settings.js';
+import { assertSigningAllowed, assertSigningAllowedWithWalletSettings } from '../src/transaction/signing-guard.js';
 
 const asset = { networkId: 'ethereum', symbol: 'ETH', decimals: 18 };
 const from = { lockerId: 'main', accountId: 'main-0', networkId: 'ethereum', address: '0x111' };
@@ -39,6 +40,14 @@ describe('v0.4 transactions', () => {
       mode: 'normal', balanceUsd: 100, fromLockerId: 'main', fromAccountId: 'main-0',
       maxTransactionUsd: 10, transactionValueUsd: 10,
     })).not.toThrow();
+  });
+  it('automatically applies the persisted wallet spending cap', () => {
+    const d = createSend({ fromLockerId: 'main', fromAccountId: 'main-0', networkId: 'ethereum', asset, amountBaseUnits: '100', to: { address: '0xabc' } });
+    const settings = { ...createDefaultWalletSettings(), maxTransactionUsd: 5 };
+    expect(() => assertSigningAllowedWithWalletSettings(d, {
+      mode: 'normal', balanceUsd: 100, fromLockerId: 'main', fromAccountId: 'main-0',
+      transactionValueUsd: 6,
+    }, settings)).toThrow('exceeds the configured spending limit');
   });
   it('blocks Ghost signing', () => {
     const d = createTransfer({ from, to, asset, amountBaseUnits: '1' });
