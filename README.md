@@ -44,3 +44,12 @@ Trust Wallet's current developer documentation describes Ethereum signing as: bu
 - This repository currently contains domain/core code rather than a rendered desktop UI, so the Wallet Settings screen and its add/edit/enable/delete controls still need UI integration.
 
 - Optional `maxTransactionUsd` adds a per-transaction hard cap. The signing guard enforces it when the caller supplies both the configured cap and a trusted USD valuation; if a cap is enabled but valuation is missing/invalid, signing is blocked (fail closed). This is not a daily/monthly spending budget, and the UI must pass the current setting into the signing guard.
+
+
+### Latest policy hardening batch
+
+- `assertSigningAllowedWithWalletSettings` now returns warning messages for matching `warn` rules; callers should display these and request explicit user acknowledgement before continuing.
+- Matching wallet-to-wallet Saving Rules require a valid USD valuation. Unrelated routes do not block a transfer or require a quote.
+- Runtime validation rejects malformed persisted wallet IDs instead of leaking low-level type errors.
+- CI installs dependencies with `npm install` because this repository does not currently contain a lockfile; CI runs on pushes to feature branches and pull requests.
+- These policy functions still need to be called by every real signing path before the wallet can claim end-to-end spending enforcement.
