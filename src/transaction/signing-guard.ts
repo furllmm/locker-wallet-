@@ -41,7 +41,7 @@ export function assertSigningAllowedWithWalletSettings(
   draft: TransactionDraft,
   context: Omit<SpendingGuardContext, 'maxTransactionUsd'> & { transactionValueUsd?: number },
   settings: WalletSettings,
-): void {
+): string[] {
   const validatedSettings = validateWalletSettings(settings);
   assertSigningAllowed(draft, {
     ...context,
@@ -51,13 +51,12 @@ export function assertSigningAllowedWithWalletSettings(
   // Saving rules only apply to wallet-to-wallet transfers. External sends have
   // no destination wallet ID and are intentionally handled by the USD cap instead.
   if (draft.intent.kind === 'transfer' && draft.intent.to.lockerId) {
-    const matchingBlockingRules = validatedSettings.savingRules.filter(rule =>
+    const matchingRules = validatedSettings.savingRules.filter(rule =>
       rule.enabled &&
-      rule.behavior === 'block' &&
       rule.sourceWalletId === draft.intent.fromLockerId &&
       rule.targetWalletId === draft.intent.to.lockerId
     );
-    if (matchingBlockingRules.length > 0 &&
+    if (matchingRules.length > 0 &&
         (context.transactionValueUsd === undefined ||
          !Number.isFinite(context.transactionValueUsd) ||
          context.transactionValueUsd < 0)) {
@@ -68,10 +67,13 @@ export function assertSigningAllowedWithWalletSettings(
       sourceWalletId: draft.intent.fromLockerId,
       targetWalletId: draft.intent.to.lockerId,
       transferValueUsd: context.transactionValueUsd ?? 0,
-      rules: validatedSettings.savingRules,
+      rules: matchingRules,
     });
     if (!evaluation.allowed) {
       throw new Error(`Transfer blocked by saving rule(s): ${evaluation.blockedByRuleIds.join(', ')}`);
     }
+    return evaluation.warnings;
   }
+
+  return [];
 }
