@@ -170,3 +170,21 @@ export function setDefaultWallet(
 ): WalletSettings {
   return validateWalletSettings({ ...settings, defaultWalletId: walletId }, availableWalletIds);
 }
+
+
+/**
+ * Returns the configured preferred wallet when it still exists.
+ * If the preference is empty or stale, falls back to the first available wallet.
+ * The caller should present the resolved choice in the UI rather than silently
+ * changing the encrypted preference.
+ */
+export function resolveDefaultWalletId(
+  settings: WalletSettings,
+  availableWalletIds: readonly string[],
+): string | null {
+  const validated = validateWalletSettings(settings);
+  if (validated.defaultWalletId !== null && availableWalletIds.includes(validated.defaultWalletId)) {
+    return validated.defaultWalletId;
+  }
+  return availableWalletIds[0] ?? null;
+}
