@@ -17,21 +17,32 @@ export interface VaultDocumentStore {
 /**
  * Reads and persists wallet settings through the same encrypted vault document.
  * The storage adapter is supplied by the host app (desktop file store, etc.).
+ * Writes are serialized to prevent two settings saves from overwriting each other.
  */
 export class WalletSettingsService {
+  private saveQueue: Promise<void> = Promise.resolve();
+
   constructor(
     private readonly store: VaultDocumentStore,
     private readonly getPassword: () => Promise<string>,
   ) {}
 
   async get(): Promise<WalletSettings> {
+    // A read waits for earlier writes so it won't return stale settings.
+    await this.saveQueue;
     const [vault, password] = await Promise.all([this.store.load(), this.getPassword()]);
     return getWalletSettings(vault, password);
   }
 
-  async save(settings: WalletSettings): Promise<void> {
-    const [vault, password] = await Promise.all([this.store.load(), this.getPassword()]);
-    const updatedVault = saveWalletSettings(vault, password, settings);
-    await this.store.save(updatedVault);
+  save(settings: WalletSettings): Promise<void> {
+    const operation = this.saveQueue.then(async () => {
+      const [vault, password] = await Promise.all([this.store.load(), this.getPassword()]);
+      const updatedVault = saveWalletSettings(vault, password, settings);
+      await this.store.save(updatedVault);
+    });
+    // Keep the queue usable after a failed save, while returning the original error
+    // to this caller.
+    this.saveQueue = operation.catch(() => undefined);
+    return operation;
   }
 }
