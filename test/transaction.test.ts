@@ -127,6 +127,24 @@ describe('v0.4 transactions', () => {
     }, settings)).not.toThrow();
   });
 
+  it('enforces configured cooldown before signing', () => {
+    const createdAt = new Date('2026-01-01T00:00:00.000Z');
+    const d = createSend({
+      fromLockerId: 'main', fromAccountId: 'main-0', networkId: 'ethereum',
+      asset, amountBaseUnits: '100', to: { address: '0xabc' },
+    }, createdAt);
+    const settings = { ...createDefaultWalletSettings(), cooldownSeconds: 60 };
+    const context = {
+      mode: 'normal' as const, balanceUsd: 100, fromLockerId: 'main', fromAccountId: 'main-0',
+    };
+    expect(() => assertSigningAllowedWithWalletSettings(d, {
+      ...context, nowEpochMs: createdAt.getTime() + 59_000,
+    }, settings)).toThrow('Signing cooldown active');
+    expect(() => assertSigningAllowedWithWalletSettings(d, {
+      ...context, nowEpochMs: createdAt.getTime() + 60_000,
+    }, settings)).not.toThrow();
+  });
+
   it('blocks Ghost signing', () => {
     const d = createTransfer({ from, to, asset, amountBaseUnits: '1' });
     expect(() => assertSigningAllowed(d, { mode: 'ghost', balanceUsd: 100, fromLockerId: 'main', fromAccountId: 'main-0' })).toThrow('Ghost Vault');
