@@ -29,6 +29,21 @@ describe('wallet settings', () => {
     });
   });
 
+  it('validates the optional signing cooldown', () => {
+    expect(validateWalletSettings({
+      ...createDefaultWalletSettings(), cooldownSeconds: 60,
+    }).cooldownSeconds).toBe(60);
+    expect(() => validateWalletSettings({
+      ...createDefaultWalletSettings(), cooldownSeconds: -1,
+    })).toThrow('Cooldown must be an integer');
+    expect(() => validateWalletSettings({
+      ...createDefaultWalletSettings(), cooldownSeconds: 1.5,
+    })).toThrow('Cooldown must be an integer');
+    expect(() => validateWalletSettings({
+      ...createDefaultWalletSettings(), cooldownSeconds: 604801,
+    })).toThrow('Cooldown must be an integer');
+  });
+
   it('validates the default wallet and saving-rule wallet references', () => {
     expect(() => validateWalletSettings({
       version: 1,
