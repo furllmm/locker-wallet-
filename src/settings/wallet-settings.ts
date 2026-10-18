@@ -43,7 +43,8 @@ export function validateWalletSettings(
   settings: WalletSettings,
   availableWalletIds?: readonly string[],
 ): WalletSettings {
-  if (settings.version !== 1) throw new Error('Unsupported wallet settings version');
+  if (!settings || typeof settings !== 'object' || settings.version !== 1) throw new Error('Unsupported wallet settings version');
+  if (!Array.isArray(settings.savingRules)) throw new Error('Saving rules must be an array');
   if (settings.defaultWalletId !== null) {
     assertNonEmpty(settings.defaultWalletId, 'Default wallet ID');
     if (availableWalletIds && !availableWalletIds.includes(settings.defaultWalletId)) {
@@ -53,6 +54,8 @@ export function validateWalletSettings(
 
   const ids = new Set<string>();
   for (const rule of settings.savingRules) {
+    if (!rule || typeof rule !== 'object') throw new Error('Invalid saving rule');
+    if (typeof rule.enabled !== 'boolean') throw new Error('Saving rule enabled must be a boolean');
     assertNonEmpty(rule.id, 'Saving rule ID');
     assertNonEmpty(rule.sourceWalletId, 'Saving rule source wallet ID');
     assertNonEmpty(rule.targetWalletId, 'Saving rule target wallet ID');
@@ -121,4 +124,33 @@ export function evaluateSavingRules(input: {
     warnings,
     blockedByRuleIds,
   };
+}
+
+
+/** Adds or replaces a rule without mutating the caller's settings object. */
+export function upsertSavingRule(
+  settings: WalletSettings,
+  rule: SavingRule,
+  availableWalletIds?: readonly string[],
+): WalletSettings {
+  const current = validateWalletSettings(settings, availableWalletIds);
+  const nextRules = current.savingRules.filter(existing => existing.id !== rule.id);
+  nextRules.push({ ...rule });
+  return validateWalletSettings({ ...current, savingRules: nextRules }, availableWalletIds);
+}
+
+/** Removes a rule by ID. Removing a missing ID is intentionally idempotent. */
+export function deleteSavingRule(settings: WalletSettings, ruleId: string): WalletSettings {
+  assertNonEmpty(ruleId, 'Saving rule ID');
+  const current = validateWalletSettings(settings);
+  return { ...current, savingRules: current.savingRules.filter(rule => rule.id !== ruleId) };
+}
+
+/** Sets the preferred wallet; null clears the preference. */
+export function setDefaultWallet(
+  settings: WalletSettings,
+  walletId: string | null,
+  availableWalletIds?: readonly string[],
+): WalletSettings {
+  return validateWalletSettings({ ...settings, defaultWalletId: walletId }, availableWalletIds);
 }
