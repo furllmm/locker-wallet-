@@ -1,5 +1,6 @@
 import { canSign, type SigningContext } from '../rules/modes.js';
 import type { TransactionDraft } from './types.js';
+import type { WalletSettings } from '../settings/wallet-settings.js';
 
 export interface SpendingGuardContext extends SigningContext {
   fromLockerId: string;
@@ -32,4 +33,17 @@ export function assertSigningAllowed(draft: TransactionDraft, context: SpendingG
       throw new Error(`Transaction exceeds the configured spending limit of $${context.maxTransactionUsd.toFixed(2)}.`);
     }
   }
+}
+
+
+/** Applies the persisted wallet spending cap instead of relying on each caller to copy it manually. */
+export function assertSigningAllowedWithWalletSettings(
+  draft: TransactionDraft,
+  context: Omit<SpendingGuardContext, 'maxTransactionUsd'> & { transactionValueUsd?: number },
+  settings: WalletSettings,
+): void {
+  assertSigningAllowed(draft, {
+    ...context,
+    maxTransactionUsd: settings.maxTransactionUsd ?? null,
+  });
 }
